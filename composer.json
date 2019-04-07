@@ -1,0 +1,36 @@
+{
+    "name": "james2doyle/laravel-scout-sonic",
+    "description": "Sonic driver for Laravel Scout.",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "James Doyle",
+            "email": "james2doyle@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.0",
+        "laravel/scout": "^7.1",
+        "php-sonic/php-sonic": "^2.0",
+        "laravel/helpers": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "james2doyle\\SonicScout\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "james2doyle\\SonicScout\\Providers\\SonicScoutServiceProvider"
+            ]
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^8.0",
+        "mockery/mockery": "^1.0"
+    },
+    "scripts": {
+        "test": "./vendor/bin/phpunit"
+    }
+}
