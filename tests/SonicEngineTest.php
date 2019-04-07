@@ -172,6 +172,33 @@ class SonicEngineTest extends TestCase
     }
 
     /** @test */
+    public function itCanMapCorrectlyToTheModelsWhenFiltered()
+    {
+        $mocks = $this->mockFactory();
+
+        $factory = Mockery::mock(ChannelFactory::class, [
+            'newIngestChannel' => $mocks['ingest'],
+            'newSearchChannel' => $mocks['search'],
+            'newControlChannel' => $mocks['control'],
+        ]);
+
+        $engine = new SonicSearchEngine($factory);
+
+        $model = Mockery::mock(stdClass::class);
+        $model->shouldReceive('getScoutModelsByIds')->andReturn($models = Collection::make([
+            new SearchableModel(['id' => 1]),
+            new SearchableModel(['id' => 2]),
+            new SearchableModel(['id' => 3]),
+            new SearchableModel(['id' => 4]),
+        ]));
+
+        $builder = Mockery::mock(Builder::class);
+        $builder->wheres = ['id' => 1];
+        $results = $engine->map($builder, [1, 2, 3, 4], $model);
+        $this->assertEquals(1, count($results));
+    }
+
+    /** @test */
     public function itCanHandleDefaultSearchableArray()
     {
         $mocks = $this->mockFactory();
