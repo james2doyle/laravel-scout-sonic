@@ -10,7 +10,7 @@
     ],
     "require": {
         "php": ">=7.0",
-        "laravel/scout": "^7.1",
+        "laravel/scout": "^7.1|^8.0",
         "php-sonic/php-sonic": "^2.0",
         "laravel/helpers": "^1.0"
     },
