@@ -3,51 +3,53 @@
 namespace james2doyle\SonicScout\Engines;
 
 use Laravel\Scout\Builder;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Scout\Engines\Engine;
-use SonicSearch\ChannelFactory;
+use Psonic\Client;
+use Psonic\Control;
+use Psonic\Ingest;
+use Psonic\Search;
 
 class SonicSearchEngine extends Engine
 {
     /**
      * The Sonic search client.
      *
-     * @var \SonicSearch\SearchChannel
+     * @var Search
      */
     protected $search;
 
     /**
      * The Sonic index/push client.
      *
-     * @var \SonicSearch\IngestChannel
+     * @var Ingest
      */
     protected $ingest;
 
     /**
      * The Sonic index/push client.
      *
-     * @var \SonicSearch\ControlChannel
+     * @var Control
      */
     protected $control;
 
     /**
      * Create a new engine instance.
      *
-     * @throws \SonicSearch\NoConnectionException If connecting to the sonic instance failed.
-     * @throws \SonicSearch\AuthenticationException If the given password was wrong.
-     * @throws \SonicSearch\ProtocolException If Sonic misbehaved or announced an unsupported protocol version.
-     *
-     * @return void
+     * @param  string  $host
+     * @param  int  $port
+     * @param  string  $password
+     * @param $timeout
+     * @throws \Psonic\Exceptions\ConnectionException
      */
-    public function __construct(ChannelFactory $factory)
+    public function __construct(string $host = 'localhost', int $port = 1491, string $password = 'secretPassword', int $timeout = 30)
     {
-        $this->ingest = $factory->newIngestChannel();
-        $this->search = $factory->newSearchChannel();
-        $this->control = $factory->newControlChannel();
+        $this->ingest = new Ingest(new Client($host, $port, $timeout));
+        $this->search = new Search(new Client($host, $port, $timeout));
+        $this->control = new Control(new Client($host, $port, $timeout));
 
-        $this->ingest->connect();
-        $this->search->connect();
-        $this->control->connect();
+        $this->ingest->connect($password);
+        $this->search->connect($password);
+        $this->control->connect($password);
     }
 
     /**
@@ -55,18 +57,14 @@ class SonicSearchEngine extends Engine
      */
     public function __destruct()
     {
-        $this->ingest->quit();
-        $this->search->quit();
-        $this->control->quit();
+        $this->ingest->disconnect();
+        $this->search->disconnect();
+        $this->control->disconnect();
     }
-
     /**
      * Update the given model in the index.
      *
      * @param  \Illuminate\Database\Eloquent\Collection  $models
-     * @throws \SonicSearch\NoConnectionException If the connection to Sonic has been lost in the meantime.
-     * @throws \SonicSearch\CommandFailedException If execution of the command failed for which-ever reason.
-     * @throws \SonicSearch\InvalidArgumentException If the given set of terms could not fit into Sonics receive buffer.
      *
      * @return void
      */
@@ -107,9 +105,6 @@ class SonicSearchEngine extends Engine
      * Remove the given model from the index.
      *
      * @param  \Illuminate\Database\Eloquent\Collection|\Illuminate\Support\Collection  $models
-     * @throws \SonicSearch\NoConnectionException If the connection to Sonic has been lost in the meantime.
-     * @throws \SonicSearch\CommandFailedException If execution of the command failed for which-ever reason.
-     *
      * @return void
      */
     public function delete($models)
@@ -118,16 +113,12 @@ class SonicSearchEngine extends Engine
 
         $models->map(function ($model) {
             $bucket = class_basename($model);
-            $this->ingest->flush(str_plural($bucket), $bucket, $model->getScoutKey());
+            $this->ingest->flusho(str_plural($bucket), $bucket, $model->getScoutKey());
         })->values()->all();
     }
 
     /**
      * Perform the given search on the engine.
-     *
-     * @param  \Laravel\Scout\Builder  $builder
-     * @throws \SonicSearch\NoConnectionException If the connection to Sonic has been lost in the meantime.
-     * @throws \SonicSearch\CommandFailedException If execution of the command failed for which-ever reason.
      *
      * @return array
      */

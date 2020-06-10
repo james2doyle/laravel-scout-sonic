@@ -15,15 +15,11 @@ class SonicScoutServiceProvider extends ServiceProvider
     public function boot()
     {
         $this->app->make(EngineManager::class)->extend('sonic', function () {
-            $factory = new ChannelFactory(
+            return new SonicSearchEngine(
                 \config('scout.sonic.address'),
                 \config('scout.sonic.port'),
                 \config('scout.sonic.password'),
-                \config('scout.sonic.connection_timeout'),
-                \config('scout.sonic.read_timeout')
-            );
-
-            return new SonicSearchEngine($factory);
+                \config('scout.sonic.connection_timeout'));
         });
     }
 }
