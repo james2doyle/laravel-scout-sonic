@@ -4,7 +4,6 @@ namespace james2doyle\SonicScout\Engines;
 
 use Laravel\Scout\Builder;
 use Laravel\Scout\Engines\Engine;
-use Psonic\Client;
 use Psonic\Control;
 use Psonic\Ingest;
 use Psonic\Search;
@@ -35,17 +34,17 @@ class SonicSearchEngine extends Engine
     /**
      * Create a new engine instance.
      *
-     * @param  string  $host
-     * @param  int  $port
+     * @param  Ingest  $ingest
+     * @param  Search  $search
+     * @param  Control  $control
      * @param  string  $password
-     * @param $timeout
      * @throws \Psonic\Exceptions\ConnectionException
      */
-    public function __construct(string $host = 'localhost', int $port = 1491, string $password = 'secretPassword', int $timeout = 30)
+    public function __construct(Ingest $ingest, Search $search, Control $control, string $password = 'secretPassword')
     {
-        $this->ingest = new Ingest(new Client($host, $port, $timeout));
-        $this->search = new Search(new Client($host, $port, $timeout));
-        $this->control = new Control(new Client($host, $port, $timeout));
+        $this->ingest = $ingest;
+        $this->search = $search;
+        $this->control = $control;
 
         $this->ingest->connect($password);
         $this->search->connect($password);

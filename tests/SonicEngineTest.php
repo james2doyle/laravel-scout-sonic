@@ -2,6 +2,9 @@
 
 namespace james2doyle\SonicScout\Tests;
 
+use Psonic\Control;
+use Psonic\Ingest;
+use Psonic\Search;
 use stdClass;
 use Mockery;
 use Laravel\Scout\Builder;
@@ -13,55 +16,129 @@ use james2doyle\SonicScout\Tests\Fixtures\SearchableModel;
 class SonicEngineTest extends TestCase
 {
 
-    /**
-     * @var SonicSearchEngine|null
-     */
-    private $engine;
-
-    protected function setUp(): void
+    protected function tearDown(): void
     {
-        $this->engine = new SonicSearchEngine();
-    }
-    /** @test */
-    public function itCanInitiateThesearchEngine()
-    {
-        $this->assertInstanceOf(SonicSearchEngine::class, $this->engine);
-    }
-    /** @test */
-    public function itCanPushObjectsToTheIndex()
-    {
-        $this->engine->update(Collection::make([new SearchableModel(['id' => 1])]));
+        Mockery::close();
     }
 
-    /** @test */
-    public function itCanDeleteObjectsFromTheIndex()
+    protected function mockChannels(): array
     {
-        $this->engine->delete(Collection::make([new SearchableModel(['id' => 1])]));
+        $ingest = Mockery::mock(Ingest::class);
+        $ingest->shouldReceive('connect')->withAnyArgs()->once();
+        $ingest->shouldReceive('disconnect')->withNoArgs()->once();
+
+        $search = Mockery::mock(Search::class);
+        $search->shouldReceive('connect')->withAnyArgs()->once();
+        $search->shouldReceive('disconnect')->withNoArgs()->once();
+
+        $control = Mockery::mock(Control::class);
+        $control->shouldReceive('connect')->withAnyArgs()->once();
+        $control->shouldReceive('disconnect')->withNoArgs()->once();
+
+        return compact('ingest', 'search', 'control');
+    }
+
+    public function testItCanPushObjectsToTheIndex()
+    {
+        /**
+         * @var Search|Mockery\MockInterface $search
+         * @var Ingest|Mockery\MockInterface $ingest
+         * @var Control|Mockery\MockInterface $control
+         */
+        extract($this->mockChannels());
+
+        $ingest->shouldReceive('ping')->withNoArgs()->once();
+        $ingest->shouldReceive('push')->once();
+        $control->shouldReceive('consolidate')->withNoArgs()->once();
+
+        $engine = new SonicSearchEngine($ingest, $search, $control);
+        $engine->update(Collection::make([new SearchableModel(['id' => 1])]));
+    }
+
+    public function testItCanDeleteObjectsFromTheIndex()
+    {
+        /**
+         * @var Search|Mockery\MockInterface $search
+         * @var Ingest|Mockery\MockInterface $ingest
+         * @var Control|Mockery\MockInterface $control
+         */
+        extract($this->mockChannels());
+        $ingest->shouldReceive('ping')->withNoArgs()->once();
+        $ingest->shouldReceive('flusho')->withArgs(function () {
+            $args = func_get_args();
+            $expected = [
+                'SearchableModels',
+                'SearchableModel',
+                1,
+            ];
+            return $args === $expected;
+        });
+
+        $engine = new SonicSearchEngine($ingest, $search, $control);
+        $engine->delete(Collection::make([new SearchableModel(['id' => 1])]));
     }
 
     /** @test */
-    public function itCanSearchTheIndex()
+    public function testItCanSearchTheIndex()
     {
+        /**
+         * @var Search|Mockery\MockInterface $search
+         * @var Ingest|Mockery\MockInterface $ingest
+         * @var Control|Mockery\MockInterface $control
+         */
+        extract($this->mockChannels());
+        $search->shouldReceive('ping')->withNoArgs()->once();
+
+        $search->shouldReceive('query')->withArgs(function () {
+            $args = func_get_args();
+            $expected = [
+                'SearchableModels',
+                'SearchableModel',
+                'searchable',
+                null,
+                null,
+            ];
+
+            return $args === $expected;
+        });
+
+        $engine = new SonicSearchEngine($ingest, $search, $control);
         $builder = new Builder(new SearchableModel, 'searchable');
-        $this->engine->search($builder);
+        $engine->search($builder);
     }
 
     /** @test */
-    public function itCanMapCorrectlyToTheModels()
+    public function testItCanMapCorrectlyToTheModels()
     {
+        /**
+         * @var Search|Mockery\MockInterface $search
+         * @var Ingest|Mockery\MockInterface $ingest
+         * @var Control|Mockery\MockInterface $control
+         */
+        extract($this->mockChannels());
+
+        $engine = new SonicSearchEngine($ingest, $search, $control);
         $model = Mockery::mock(stdClass::class);
         $model->shouldReceive('getScoutModelsByIds')->andReturn($models = Collection::make([
             new SearchableModel(['id' => 1]),
         ]));
         $builder = Mockery::mock(Builder::class);
-        $results = $this->engine->map($builder, [1], $model);
+        $results = $engine->map($builder, [1], $model);
         $this->assertCount(1, $results);
     }
 
     /** @test */
-    public function itCanMapCorrectlyToTheModelsWhenFiltered()
+    public function testItCanMapCorrectlyToTheModelsWhenFiltered()
     {
+        /**
+         * @var Search|Mockery\MockInterface $search
+         * @var Ingest|Mockery\MockInterface $ingest
+         * @var Control|Mockery\MockInterface $control
+         */
+        extract($this->mockChannels());
         $model = Mockery::mock(stdClass::class);
+
+        $engine = new SonicSearchEngine($ingest, $search, $control);
         $model->shouldReceive('getScoutModelsByIds')->andReturn($models = Collection::make([
             new SearchableModel(['id' => 1]),
             new SearchableModel(['id' => 2]),
@@ -71,17 +148,28 @@ class SonicEngineTest extends TestCase
 
         $builder = Mockery::mock(Builder::class);
         $builder->wheres = ['id' => 1];
-        $results = $this->engine->map($builder, [1, 2, 3, 4], $model);
+        $results = $engine->map($builder, [1, 2, 3, 4], $model);
         $this->assertCount(1, $results);
     }
 
     /** @test */
-    public function itCanHandleDefaultSearchableArray()
+    public function testItCanHandleDefaultSearchableArray()
     {
+        /**
+         * @var Search|Mockery\MockInterface $search
+         * @var Ingest|Mockery\MockInterface $ingest
+         * @var Control|Mockery\MockInterface $control
+         */
+        extract($this->mockChannels());
+
+        $ingest->shouldReceive('ping')->withNoArgs()->once();
+        $ingest->shouldReceive('push')->once();
+        $control->shouldReceive('consolidate')->withNoArgs()->once();
+
         $model = Mockery::mock(stdClass::class);
         $model->shouldReceive('getScoutKey')->andReturn(1);
         $model->shouldReceive('toSearchableArray')->andReturn(['id' => 1, 'email' => 'hello@example.com']);
-
-        $this->engine->update(Collection::make([$model]));
+        $engine = new SonicSearchEngine($ingest, $search, $control);
+        $engine->update(Collection::make([$model]));
     }
 }
