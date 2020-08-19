@@ -172,4 +172,25 @@ class SonicEngineTest extends TestCase
         $engine = new SonicSearchEngine($ingest, $search, $control);
         $engine->update(Collection::make([$model]));
     }
+
+    public function testItCanHandleAnEmptyResultset()
+    {
+        /**
+         * @var Search|Mockery\MockInterface $search
+         * @var Ingest|Mockery\MockInterface $ingest
+         * @var Control|Mockery\MockInterface $control
+         */
+        extract($this->mockChannels());
+        $model = Mockery::mock(stdClass::class);
+
+        $engine = new SonicSearchEngine($ingest, $search, $control);
+        $model->shouldReceive('newCollection')->andReturn($models = Collection::make([
+            new Collection()
+        ]));
+
+        $builder = Mockery::mock(Builder::class);
+        $builder->wheres = ['id' => 1];
+        $results = $engine->map($builder, [0 => ""], $model);
+        $this->assertEmpty($results->first());
+    }
 }

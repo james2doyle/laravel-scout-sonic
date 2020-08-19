@@ -175,7 +175,7 @@ class SonicSearchEngine extends Engine
      */
     public function map(Builder $builder, $results, $model)
     {
-        if (count($results) === 0) {
+        if (count($results) === 1 && empty(reset($results))) {
             return $model->newCollection();
         }
 
@@ -193,7 +193,7 @@ class SonicSearchEngine extends Engine
 
         return $result->sortBy(function($model) use ($objectIdPositions) {
             return $objectIdPositions[$model->getScoutKey()];
-        });;
+        });
     }
 
     /**
