@@ -150,6 +150,38 @@ class SonicEngineTest extends TestCase
     }
 
     /** @test */
+    public function itCanSearchTheIndexWithTakeLimit()
+    {
+        $mocks = $this->mockFactory();
+
+        $mocks['search']->shouldReceive('ping')->withNoArgs()->once();
+
+        $mocks['search']->shouldReceive('query')->withArgs(function () {
+            $args = func_get_args();
+            $expected = [
+                'SearchableModels',
+                'SearchableModel',
+                'searchable',
+                3,
+                null,
+            ];
+
+            return $args == $expected;
+        });
+
+        $factory = Mockery::mock(ChannelFactory::class, [
+            'newIngestChannel' => $mocks['ingest'],
+            'newSearchChannel' => $mocks['search'],
+            'newControlChannel' => $mocks['control'],
+        ]);
+
+        $engine = new SonicSearchEngine($factory);
+
+        $builder = (new Builder(new SearchableModel, 'searchable'))->take(3);
+        $engine->search($builder);
+    }
+
+    /** @test */
     public function itCanMapCorrectlyToTheModels()
     {
         $mocks = $this->mockFactory();

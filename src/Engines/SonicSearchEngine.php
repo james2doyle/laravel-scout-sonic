@@ -126,6 +126,8 @@ class SonicSearchEngine extends Engine
      * Perform the given search on the engine.
      *
      * @param  \Laravel\Scout\Builder  $builder
+     * @param  int                     $limit
+     * @param  int                     $offset
      * @throws \SonicSearch\NoConnectionException If the connection to Sonic has been lost in the meantime.
      * @throws \SonicSearch\CommandFailedException If execution of the command failed for which-ever reason.
      *
@@ -148,7 +150,7 @@ class SonicSearchEngine extends Engine
      */
     public function search(Builder $builder)
     {
-        return $this->performSearch($builder);
+        return $this->performSearch($builder, $builder->limit);
     }
 
     /**
