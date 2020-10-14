@@ -208,7 +208,7 @@ class SonicEngineTest extends TestCase
             $args = func_get_args();
             $expected = [
                 str_plural($args[0]), // inject mockery class details
-                $args[1], // inject mockery class details
+                'OtherSearchableAs',
                 '1',
                 '1 hello@example.com'
             ];
@@ -227,6 +227,7 @@ class SonicEngineTest extends TestCase
         $model = Mockery::mock(stdClass::class);
         $model->shouldReceive('getScoutKey')->andReturn(1);
         $model->shouldReceive('toSearchableArray')->andReturn(['id' => 1, 'email' => 'hello@example.com']);
+        $model->shouldReceive('searchableAs')->andReturn('OtherSearchableAs');
 
         $engine = new SonicSearchEngine($factory);
         $engine->update(Collection::make([$model]));

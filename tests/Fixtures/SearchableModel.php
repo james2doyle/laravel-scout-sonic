@@ -29,4 +29,9 @@ class SearchableModel extends Model
     {
         return [];
     }
+
+    public function searchableAs()
+    {
+        return 'SearchableModel';
+    }
 }
