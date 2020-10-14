@@ -3,6 +3,7 @@
 namespace james2doyle\SonicScout\Engines;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use Laravel\Scout\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Scout\Engines\Engine;
@@ -155,7 +156,7 @@ class SonicSearchEngine extends Engine
      */
     private function getCollectionFromModel($model)
     {
-        return str_plural($this->getBucketFromModel($model));
+        return Str::plural($this->getBucketFromModel($model));
     }
 
     /**
@@ -233,7 +234,7 @@ class SonicSearchEngine extends Engine
 
         return $result->sortBy(function($model) use ($objectIdPositions) {
             return $objectIdPositions[$model->getScoutKey()];
-        });;
+        });
     }
 
     /**

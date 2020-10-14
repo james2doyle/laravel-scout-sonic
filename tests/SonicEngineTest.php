@@ -1,6 +1,7 @@
 <?php
 namespace james2doyle\SonicScout\Tests;
 
+use Illuminate\Support\Str;
 use stdClass;
 use Mockery;
 use Laravel\Scout\Builder;
@@ -207,7 +208,7 @@ class SonicEngineTest extends TestCase
         $mocks['ingest']->shouldReceive('push')->withArgs(function () {
             $args = func_get_args();
             $expected = [
-                str_plural($args[0]), // inject mockery class details
+                Str::plural($args[0]), // inject mockery class details
                 'OtherSearchableAs',
                 '1',
                 '1 hello@example.com'
