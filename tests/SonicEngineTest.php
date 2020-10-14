@@ -111,11 +111,15 @@ class SonicEngineTest extends TestCase
     /** @test */
     public function testItCanSearchTheIndexWithTakeLimit()
     {
-        $mocks = $this->mockFactory();
+        /**
+         * @var Search|Mockery\MockInterface $search
+         * @var Ingest|Mockery\MockInterface $ingest
+         * @var Control|Mockery\MockInterface $control
+         */
+        extract($this->mockChannels());
+        $search->shouldReceive('ping')->withNoArgs()->once();
 
-        $mocks['search']->shouldReceive('ping')->withNoArgs()->once();
-
-        $mocks['search']->shouldReceive('query')->withArgs(function () {
+        $search->shouldReceive('query')->withArgs(function () {
             $args = func_get_args();
             $expected = [
                 'SearchableModels',
@@ -125,17 +129,10 @@ class SonicEngineTest extends TestCase
                 null,
             ];
 
-            return $args == $expected;
+            return $args === $expected;
         });
 
-        $factory = Mockery::mock(ChannelFactory::class, [
-            'newIngestChannel' => $mocks['ingest'],
-            'newSearchChannel' => $mocks['search'],
-            'newControlChannel' => $mocks['control'],
-        ]);
-
-        $engine = new SonicSearchEngine($factory);
-
+        $engine = new SonicSearchEngine($ingest, $search, $control);
         $builder = (new Builder(new SearchableModel, 'searchable'))->take(3);
         $engine->search($builder);
     }
@@ -202,6 +199,7 @@ class SonicEngineTest extends TestCase
         $model = Mockery::mock(stdClass::class);
         $model->shouldReceive('getScoutKey')->andReturn(1);
         $model->shouldReceive('toSearchableArray')->andReturn(['id' => 1, 'email' => 'hello@example.com']);
+        $model->shouldReceive('searchableAs')->andReturn('SearchableModel');
         $engine = new SonicSearchEngine($ingest, $search, $control);
         $engine->update(Collection::make([$model]));
     }
