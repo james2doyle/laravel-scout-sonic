@@ -2,6 +2,8 @@
 
 namespace james2doyle\SonicScout\Engines;
 
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use Laravel\Scout\Builder;
 use Laravel\Scout\Engines\Engine;
 use Psonic\Control;
@@ -75,15 +77,18 @@ class SonicSearchEngine extends Engine
 
         $this->ingest->ping();
 
-        $messages = $models->map(function ($model) {
+        $self = $this;
+
+        $messages = $models->map(function ($model) use ($self) {
             if (empty($searchableData = $model->toSearchableArray())) {
                 return;
             }
 
-            $bucket = class_basename($model);
+            $collection = $self->getCollectionFromModel($model);
+            $bucket = $self->getBucketFromModel($model);
 
             return [
-                str_plural($bucket),
+                $collection,
                 $bucket,
                 $model->getScoutKey(),
                 is_array($searchableData) ? implode(' ', array_values($searchableData)) : $searchableData,
@@ -110,9 +115,12 @@ class SonicSearchEngine extends Engine
     {
         $this->ingest->ping();
 
-        $models->map(function ($model) {
-            $bucket = class_basename($model);
-            $this->ingest->flusho(str_plural($bucket), $bucket, $model->getScoutKey());
+        $self = $this;
+
+        $models->map(function ($model) use ($self) {
+            $collection = $self->getCollectionFromModel($model);
+            $bucket = $self->getBucketFromModel($model);
+            $this->ingest->flusho($collection, $bucket, $model->getScoutKey());
         })->values()->all();
     }
 
@@ -125,8 +133,31 @@ class SonicSearchEngine extends Engine
     {
         $this->search->ping();
 
-        $bucket = class_basename($builder->model);
-        return $this->search->query(str_plural($bucket), $bucket, $builder->query, $limit, $offset);
+        $collection = $this->getCollectionFromModel($builder->model);
+        $bucket = $this->getBucketFromModel($builder->model);
+        return $this->search->query($collection, $bucket, $builder->query, $limit, $offset);
+    }
+
+    /**
+     * Generate the collection name based on the model
+     *
+     * @param Model $model
+     * @return string
+     */
+    private function getCollectionFromModel($model)
+    {
+        return Str::plural($this->getBucketFromModel($model));
+    }
+
+    /**
+     * Generate the collection name based on the model
+     *
+     * @param Model $model
+     * @return string
+     */
+    private function getBucketFromModel($model)
+    {
+        return $model->searchableAs();
     }
 
     /**
@@ -138,7 +169,7 @@ class SonicSearchEngine extends Engine
      */
     public function search(Builder $builder)
     {
-        return $this->performSearch($builder);
+        return $this->performSearch($builder, $builder->limit);
     }
 
     /**

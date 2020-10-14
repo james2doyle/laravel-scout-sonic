@@ -5,6 +5,7 @@ namespace james2doyle\SonicScout\Tests;
 use Psonic\Control;
 use Psonic\Ingest;
 use Psonic\Search;
+use Illuminate\Support\Str;
 use stdClass;
 use Mockery;
 use Laravel\Scout\Builder;
@@ -104,6 +105,38 @@ class SonicEngineTest extends TestCase
 
         $engine = new SonicSearchEngine($ingest, $search, $control);
         $builder = new Builder(new SearchableModel, 'searchable');
+        $engine->search($builder);
+    }
+
+    /** @test */
+    public function testItCanSearchTheIndexWithTakeLimit()
+    {
+        $mocks = $this->mockFactory();
+
+        $mocks['search']->shouldReceive('ping')->withNoArgs()->once();
+
+        $mocks['search']->shouldReceive('query')->withArgs(function () {
+            $args = func_get_args();
+            $expected = [
+                'SearchableModels',
+                'SearchableModel',
+                'searchable',
+                3,
+                null,
+            ];
+
+            return $args == $expected;
+        });
+
+        $factory = Mockery::mock(ChannelFactory::class, [
+            'newIngestChannel' => $mocks['ingest'],
+            'newSearchChannel' => $mocks['search'],
+            'newControlChannel' => $mocks['control'],
+        ]);
+
+        $engine = new SonicSearchEngine($factory);
+
+        $builder = (new Builder(new SearchableModel, 'searchable'))->take(3);
         $engine->search($builder);
     }
 
