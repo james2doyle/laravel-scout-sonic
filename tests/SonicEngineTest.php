@@ -2,6 +2,7 @@
 
 namespace james2doyle\SonicScout\Tests;
 
+use james2doyle\SonicScout\Tests\Fixtures\SearchableModelWithLocale;
 use Psonic\Control;
 use Psonic\Ingest;
 use Psonic\Search;
@@ -54,6 +55,35 @@ class SonicEngineTest extends TestCase
 
         $engine = new SonicSearchEngine($ingest, $search, $control);
         $engine->update(Collection::make([new SearchableModel(['id' => 1])]));
+    }
+
+    /** @test */
+    public function itCanAddObjectsToTheIndexWithLocale()
+    {
+        /**
+         * @var Search|Mockery\MockInterface $search
+         * @var Ingest|Mockery\MockInterface $ingest
+         * @var Control|Mockery\MockInterface $control
+         */
+        extract($this->mockChannels());
+
+        $ingest->shouldReceive('ping')->withNoArgs()->once();
+        $ingest->shouldReceive('push')->withArgs(function () {
+            $args = func_get_args();
+            $expected = [
+                'SearchableModels',
+                'SearchableModel',
+                '1',
+                '1 searchable model',
+                'none'
+            ];
+
+            return $args == $expected;
+        });
+        $control->shouldReceive('consolidate')->withNoArgs()->once();
+
+        $engine = new SonicSearchEngine($ingest, $search, $control);
+        $engine->update(Collection::make([new SearchableModelWithLocale(['id' => 1])]));
     }
 
     public function testItCanDeleteObjectsFromTheIndex()

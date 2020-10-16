@@ -87,12 +87,21 @@ class SonicSearchEngine extends Engine
             $collection = $self->getCollectionFromModel($model);
             $bucket = $self->getBucketFromModel($model);
 
-            return [
+            $message = [
                 $collection,
                 $bucket,
                 $model->getScoutKey(),
                 is_array($searchableData) ? implode(' ', array_values($searchableData)) : $searchableData,
             ];
+
+            if (method_exists($model, 'getSonicLocale')) {
+                $locale = $model->getSonicLocale();
+                if ($locale) {
+                    $message[] = $locale;
+                }
+            }
+
+            return $message;
         })->filter()->all();
 
         if (! empty($messages)) {
