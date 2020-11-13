@@ -5,51 +5,52 @@ namespace james2doyle\SonicScout\Engines;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Laravel\Scout\Builder;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Scout\Engines\Engine;
-use SonicSearch\ChannelFactory;
+use Psonic\Control;
+use Psonic\Ingest;
+use Psonic\Search;
 
 class SonicSearchEngine extends Engine
 {
     /**
      * The Sonic search client.
      *
-     * @var \SonicSearch\SearchChannel
+     * @var Search
      */
     protected $search;
 
     /**
      * The Sonic index/push client.
      *
-     * @var \SonicSearch\IngestChannel
+     * @var Ingest
      */
     protected $ingest;
 
     /**
      * The Sonic index/push client.
      *
-     * @var \SonicSearch\ControlChannel
+     * @var Control
      */
     protected $control;
 
     /**
      * Create a new engine instance.
      *
-     * @throws \SonicSearch\NoConnectionException If connecting to the sonic instance failed.
-     * @throws \SonicSearch\AuthenticationException If the given password was wrong.
-     * @throws \SonicSearch\ProtocolException If Sonic misbehaved or announced an unsupported protocol version.
-     *
-     * @return void
+     * @param  Ingest  $ingest
+     * @param  Search  $search
+     * @param  Control  $control
+     * @param  string  $password
+     * @throws \Psonic\Exceptions\ConnectionException
      */
-    public function __construct(ChannelFactory $factory)
+    public function __construct(Ingest $ingest, Search $search, Control $control, string $password = 'secretPassword')
     {
-        $this->ingest = $factory->newIngestChannel();
-        $this->search = $factory->newSearchChannel();
-        $this->control = $factory->newControlChannel();
+        $this->ingest = $ingest;
+        $this->search = $search;
+        $this->control = $control;
 
-        $this->ingest->connect();
-        $this->search->connect();
-        $this->control->connect();
+        $this->ingest->connect($password);
+        $this->search->connect($password);
+        $this->control->connect($password);
     }
 
     /**
@@ -57,18 +58,14 @@ class SonicSearchEngine extends Engine
      */
     public function __destruct()
     {
-        $this->ingest->quit();
-        $this->search->quit();
-        $this->control->quit();
+        $this->ingest->disconnect();
+        $this->search->disconnect();
+        $this->control->disconnect();
     }
-
     /**
      * Update the given model in the index.
      *
      * @param  \Illuminate\Database\Eloquent\Collection  $models
-     * @throws \SonicSearch\NoConnectionException If the connection to Sonic has been lost in the meantime.
-     * @throws \SonicSearch\CommandFailedException If execution of the command failed for which-ever reason.
-     * @throws \SonicSearch\InvalidArgumentException If the given set of terms could not fit into Sonics receive buffer.
      *
      * @return void
      */
@@ -90,12 +87,21 @@ class SonicSearchEngine extends Engine
             $collection = $self->getCollectionFromModel($model);
             $bucket = $self->getBucketFromModel($model);
 
-            return [
+            $message = [
                 $collection,
                 $bucket,
                 $model->getScoutKey(),
                 is_array($searchableData) ? implode(' ', array_values($searchableData)) : $searchableData,
             ];
+
+            if (method_exists($model, 'getSonicLocale')) {
+                $locale = $model->getSonicLocale();
+                if ($locale) {
+                    $message[] = $locale;
+                }
+            }
+
+            return $message;
         })->filter()->all();
 
         if (! empty($messages)) {
@@ -112,9 +118,6 @@ class SonicSearchEngine extends Engine
      * Remove the given model from the index.
      *
      * @param  \Illuminate\Database\Eloquent\Collection|\Illuminate\Support\Collection  $models
-     * @throws \SonicSearch\NoConnectionException If the connection to Sonic has been lost in the meantime.
-     * @throws \SonicSearch\CommandFailedException If execution of the command failed for which-ever reason.
-     *
      * @return void
      */
     public function delete($models)
@@ -126,18 +129,12 @@ class SonicSearchEngine extends Engine
         $models->map(function ($model) use ($self) {
             $collection = $self->getCollectionFromModel($model);
             $bucket = $self->getBucketFromModel($model);
-            $this->ingest->flush($collection, $bucket, $model->getScoutKey());
+            $this->ingest->flusho($collection, $bucket, $model->getScoutKey());
         })->values()->all();
     }
 
     /**
      * Perform the given search on the engine.
-     *
-     * @param  \Laravel\Scout\Builder  $builder
-     * @param  int                     $limit
-     * @param  int                     $offset
-     * @throws \SonicSearch\NoConnectionException If the connection to Sonic has been lost in the meantime.
-     * @throws \SonicSearch\CommandFailedException If execution of the command failed for which-ever reason.
      *
      * @return array
      */
@@ -218,7 +215,7 @@ class SonicSearchEngine extends Engine
      */
     public function map(Builder $builder, $results, $model)
     {
-        if (count($results) === 0) {
+        if (count($results) === 1 && empty(reset($results))) {
             return $model->newCollection();
         }
 

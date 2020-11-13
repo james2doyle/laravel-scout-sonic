@@ -23,6 +23,16 @@ public function toSearchableArray()
 
 For me, this builds a nice string for search that can match on a "name". In my application, the concept of "name" is either the User display name or first/last name.
 
+---
+
+If the locale is known, you can also create the `getSonicLocale()` method on your model, which returns the locale. It will then get passed to the Sonic `PUSH` calls:
+
+```php
+// an ISO 639-3 locale code eg. eng for English (if set, the locale must be a valid ISO 639-3 code; if set to none, lexing will be disabled; if not set, the locale will be guessed from text)
+public function getSonicLocale() {
+    return 'none';
+}
+```
 
 Installation <div id="installation"></div>
 ------------
